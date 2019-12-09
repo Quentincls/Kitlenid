@@ -56,6 +56,18 @@
     {
       "class": "oval",
       "id": "86B607CE-1203-4644-BD2F-20CD08DB9384"
+    },
+    {
+      "class": "rectangle",
+      "id": "F70DA758-7875-43F6-9554-58C301917C7B"
+    },
+    {
+      "class": "rectangle",
+      "id": "621B520E-74D7-42CE-BE58-9D447213F450"
+    },
+    {
+      "class": "rectangle",
+      "id": "291A54B7-8094-4710-90E8-D2220B6132FB"
     }
   ],
   "maintainScrollPosition": false,
