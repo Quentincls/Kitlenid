@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Orages en vol</title>
+  <meta name="description" content="Carte temps réel des orages pour l'aviation : foudre, radar, satellite, SIGMET, METAR, PIREP et trafic aérien — données ouvertes." />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" class="brand-icon" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+      <span>Orages <em>en vol</em></span>
+    </div>
+    <div class="status" id="status">
+      <span class="pill" data-src="lightning" title="Foudre temps réel (Blitzortung)"><i></i>Foudre <b id="rate">–</b>/min</span>
+      <span class="pill" data-src="radar" title="Radar précipitations (RainViewer)"><i></i>Radar</span>
+      <span class="pill" data-src="sigmet" title="SIGMET (NOAA Aviation Weather Center)"><i></i>SIGMET <b id="sigmetCount">–</b></span>
+      <span class="pill" data-src="aircraft" title="Trafic aérien ADS-B"><i></i>Avions <b id="acCount">–</b></span>
+      <span class="pill alert-pill" id="alertPill" title="Vols à proximité d'activité orageuse"><i></i><b id="alertCount">0</b> exposés</span>
+    </div>
+    <div class="clock" id="clock">--:--:-- UTC</div>
+    <button class="icon-btn panel-toggle" id="panelToggle" aria-label="Afficher le panneau">☰</button>
+  </header>
+
+  <main class="layout">
+    <div id="map" aria-label="Carte"></div>
+
+    <div class="map-hint" id="mapHint" hidden></div>
+
+    <div class="radar-bar" id="radarBar">
+      <button class="icon-btn" id="radarPlay" aria-label="Lecture animation radar">▶</button>
+      <input type="range" id="radarSlider" min="0" max="0" value="0" aria-label="Image radar" />
+      <span id="radarTime">--:--</span>
+    </div>
+
+    <div class="legend" id="legend">
+      <div class="legend-title">Impacts de foudre</div>
+      <div class="legend-row"><span class="sw" style="--c:#ffffff"></span>&lt; 1 min</div>
+      <div class="legend-row"><span class="sw" style="--c:#ffe14d"></span>1–5 min</div>
+      <div class="legend-row"><span class="sw" style="--c:#ff9d2e"></span>5–15 min</div>
+      <div class="legend-row"><span class="sw" style="--c:#ff4d4d"></span>15–30 min</div>
+      <div class="legend-row"><span class="sw" style="--c:#9b3b6b"></span>30–60 min</div>
+      <div class="legend-title">Avions</div>
+      <div class="legend-row"><span class="sw plane" style="--c:#38d39f"></span>RAS</div>
+      <div class="legend-row"><span class="sw plane" style="--c:#ffb020"></span>Orage proche</div>
+      <div class="legend-row"><span class="sw plane" style="--c:#ff3b5c"></span>Orage sur la route</div>
+    </div>
+
+    <aside class="panel" id="panel">
+      <nav class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="flight">Vol</button>
+        <button role="tab" class="tab" data-tab="alerts">Exposés</button>
+        <button role="tab" class="tab" data-tab="layers">Couches</button>
+        <button role="tab" class="tab" data-tab="about">Sources</button>
+      </nav>
+
+      <section class="tab-body active" data-tab="flight">
+        <label class="search">
+          <input id="search" type="search" placeholder="Rechercher un indicatif (AFR123, EZY…)" autocomplete="off" />
+        </label>
+        <div id="searchResults" class="list"></div>
+        <div id="flightDetail" class="flight-empty">
+          <p>Cliquez sur un avion pour analyser l'activité orageuse autour de lui et sur sa route.</p>
+          <p class="muted">Cliquez n'importe où sur la carte pour obtenir l'analyse convective du point (CAPE, Lifted Index, impacts récents).</p>
+        </div>
+      </section>
+
+      <section class="tab-body" data-tab="alerts">
+        <p class="muted small">Vols en l'air dans la zone affichée, triés par exposition. Analyse sur les impacts des 15 dernières minutes et les SIGMET convectifs.</p>
+        <div id="alertList" class="list"></div>
+      </section>
+
+      <section class="tab-body" data-tab="layers">
+        <div class="layer-group">
+          <h3>Orages</h3>
+          <label><input type="checkbox" data-layer="strikes" checked /> Foudre temps réel <span class="src">Blitzortung</span></label>
+          <label><input type="checkbox" data-layer="li" /> Foudre satellite MTG-LI <span class="src">EUMETSAT</span></label>
+          <label><input type="checkbox" data-layer="radar" checked /> Radar précipitations <span class="src">RainViewer</span></label>
+          <label><input type="checkbox" data-layer="sat" /> Satellite infrarouge <span class="src">EUMETSAT</span></label>
+          <label><input type="checkbox" data-layer="convection" /> Satellite RGB convection <span class="src">EUMETSAT</span></label>
+        </div>
+        <div class="layer-group">
+          <h3>Aéronautique</h3>
+          <label><input type="checkbox" data-layer="sigmet" checked /> SIGMET convectifs <span class="src">NOAA AWC</span></label>
+          <label><input type="checkbox" data-layer="sigmetAll" /> Autres SIGMET (turb., givrage…)</label>
+          <label><input type="checkbox" data-layer="metar" checked /> METAR (orages au sol) <span class="src">NOAA AWC</span></label>
+          <label><input type="checkbox" data-layer="pirep" /> PIREP / AIREP <span class="src">NOAA AWC</span></label>
+          <label><input type="checkbox" data-layer="aircraft" checked /> Trafic aérien <span class="src">adsb.lol</span></label>
+          <label><input type="checkbox" data-layer="labels" /> Indicatifs des vols</label>
+        </div>
+        <div class="layer-group">
+          <h3>Réglages</h3>
+          <label class="range">Historique foudre
+            <select id="historySel">
+              <option value="15">15 min</option>
+              <option value="30" selected>30 min</option>
+              <option value="60">60 min</option>
+            </select>
+          </label>
+          <label class="range">Opacité radar <input type="range" id="radarOpacity" min="0.2" max="1" step="0.05" value="0.7" /></label>
+          <label class="range">Altitude mini des vols
+            <select id="minAltSel">
+              <option value="0">Tous</option>
+              <option value="10000">FL100+</option>
+              <option value="20000" selected>FL200+</option>
+              <option value="30000">FL300+</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="tab-body" data-tab="about">
+        <p>Carte d'aide à la conscience de situation, construite uniquement avec des données ouvertes et gratuites :</p>
+        <ul class="sources">
+          <li><b>Foudre temps réel</b> — <a href="https://www.blitzortung.org" target="_blank" rel="noopener">Blitzortung.org</a>, réseau communautaire de détecteurs (usage non commercial).</li>
+          <li><b>Foudre satellite</b> — Imageur d'éclairs MTG-LI, <a href="https://view.eumetsat.int" target="_blank" rel="noopener">EUMETSAT View</a>.</li>
+          <li><b>Radar</b> — mosaïque mondiale <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener">RainViewer</a>, 2 h d'historique.</li>
+          <li><b>Satellite IR / RGB convection</b> — Meteosat MTG & MSG, EUMETSAT.</li>
+          <li><b>SIGMET, METAR, PIREP</b> — <a href="https://aviationweather.gov/data/api/" target="_blank" rel="noopener">NOAA Aviation Weather Center</a> (domaine public).</li>
+          <li><b>Trafic aérien</b> — <a href="https://adsb.lol" target="_blank" rel="noopener">adsb.lol</a> (ODbL), repli sur <a href="https://opensky-network.org" target="_blank" rel="noopener">OpenSky Network</a>.</li>
+          <li><b>Analyse convective</b> — CAPE, Lifted Index, isotherme 0 °C : <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0).</li>
+          <li><b>Fond de carte</b> — Esri World Dark Gray Canvas, © OpenStreetMap.</li>
+        </ul>
+        <div class="warning">
+          <b>Avertissement.</b> Outil d'information sans valeur opérationnelle. Il ne remplace ni le briefing météo officiel, ni les informations ATC, ni le radar météo de bord. Les impacts de foudre n'ont pas d'altitude ; les positions d'avions peuvent avoir plusieurs secondes de retard.
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
