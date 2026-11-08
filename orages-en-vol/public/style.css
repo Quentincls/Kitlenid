@@ -50,6 +50,9 @@ a { color: var(--accent); }
 .pill.ok i { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 .pill.err i { background: var(--danger); }
 .pill.loading i { background: var(--warn); }
+.pill.off { opacity: .45; }
+.note { background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.note code { color: var(--accent); }
 .alert-pill { cursor: pointer; }
 .alert-pill.hot { border-color: var(--danger); color: #ffd0d8; }
 .alert-pill.hot i { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: blink 1s infinite; }

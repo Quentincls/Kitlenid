@@ -265,8 +265,49 @@
     rateTimes = rateTimes.filter((t) => t >= minR);
   }
 
+  // Mode autonome (sans serveur) : connexion directe du navigateur au réseau Blitzortung
+  function lzwDecode(b) {
+    const dict = {}, chars = b.split("");
+    let cur = chars[0], prev = cur, code = 256;
+    const out = [cur];
+    for (let i = 1; i < chars.length; i++) {
+      const c = chars[i].charCodeAt(0);
+      const entry = c < 256 ? chars[i] : dict[c] ? dict[c] : prev + cur;
+      out.push(entry);
+      cur = entry.charAt(0);
+      dict[code++] = prev + cur;
+      prev = entry;
+    }
+    return out.join("");
+  }
+  let wsIdx = 0;
+  function startDirectLightning() {
+    const hosts = ["ws1", "ws8", "ws2", "ws3"];
+    const host = hosts[wsIdx++ % hosts.length];
+    let ws, buf = [], watchdog, flush;
+    const restart = () => {
+      clearTimeout(watchdog); clearInterval(flush);
+      setStatus("lightning", "err");
+      try { ws.close(); } catch {}
+      setTimeout(startDirectLightning, 3000);
+    };
+    const arm = () => { clearTimeout(watchdog); watchdog = setTimeout(restart, 60000); };
+    try { ws = new WebSocket(`wss://${host}.blitzortung.org/`); } catch { return setTimeout(startDirectLightning, 5000); }
+    ws.onopen = () => { ws.send('{"a":111}'); setStatus("lightning", "ok"); arm(); };
+    ws.onmessage = (m) => {
+      arm();
+      try {
+        const j = JSON.parse(lzwDecode(String(m.data)));
+        if (typeof j.lat === "number" && typeof j.lon === "number") buf.push([Math.round(j.time / 1e6), j.lat, j.lon]);
+      } catch {}
+    };
+    ws.onclose = restart;
+    flush = setInterval(() => { if (buf.length) { addStrikes(buf); buf = []; } }, 1000);
+  }
+
   async function startLightning() {
     setStatus("lightning", "loading");
+    if (!SERVER) return startDirectLightning();
     try {
       addStrikes(await api(`/api/lightning?since=${Date.now() - 60 * 60e3}`));
       rebuildGrid();
@@ -416,6 +457,7 @@
     sigmetLayer.addData({ type: "FeatureCollection", features: sigmetData });
   }
   async function loadSigmets() {
+    if (!SERVER) return setStatus("sigmet", "off");
     setStatus("sigmet", "loading");
     try {
       const d = await api("/api/sigmets");
@@ -453,6 +495,7 @@
   }
 
   async function loadMetars() {
+    if (!SERVER) return;
     if (!layerOn.metar || map.getZoom() < 5) { metarLayer.clearLayers(); return; }
     try {
       const d = await api(`/api/metars?bbox=${viewBbox()}`);
@@ -484,6 +527,7 @@
   }
 
   async function loadPireps() {
+    if (!SERVER) return;
     if (!layerOn.pirep || map.getZoom() < 4) { pirepLayer.clearLayers(); return; }
     try {
       const d = await api(`/api/pireps?bbox=${viewBbox()}`);
@@ -554,6 +598,7 @@
 
   let acSource = "";
   async function loadAircraft() {
+    if (!SERVER) return setStatus("aircraft", "off");
     if (!layerOn.aircraft) return;
     const z = map.getZoom();
     if (z < 5) {
@@ -907,10 +952,23 @@
   /* ================================================================ */
   /* Démarrage & rafraîchissements                                     */
   /* ================================================================ */
+  let SERVER = false;
   for (const name of Object.keys(LAYERS)) applyLayer(name, layerOn[name]);
-  startLightning();
   loadRadar();
-  loadSigmets();
+  (async () => {
+    try {
+      const r = await fetch("/api/health", { cache: "no-store" });
+      SERVER = r.ok && (r.headers.get("content-type") || "").includes("json");
+    } catch { SERVER = false; }
+    if (!SERVER) {
+      document.body.classList.add("standalone");
+      $("#standaloneNote").hidden = false;
+      if (layerOn.aircraft || layerOn.sigmet) { /* calques sans source en mode autonome */ }
+    }
+    startLightning();
+    loadSigmets();
+    loadAircraft(); loadMetars(); loadPireps();
+  })();
 
   let moveTimer;
   map.on("moveend", () => {

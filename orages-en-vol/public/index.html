@@ -64,6 +64,10 @@
           <input id="search" type="search" placeholder="Rechercher un indicatif (AFR123, EZY…)" autocomplete="off" />
         </label>
         <div id="searchResults" class="list"></div>
+        <div id="standaloneNote" class="note" hidden>
+          <b>Version autonome.</b> Foudre en direct, radar, satellite et analyse convective fonctionnent directement depuis le navigateur.
+          Le trafic aérien, les SIGMET et les METAR ont besoin du serveur du projet (<code>node server.js</code>), car ces sources refusent les appels directs d'un navigateur.
+        </div>
         <div id="flightDetail" class="flight-empty">
           <p>Cliquez sur un avion pour analyser l'activité orageuse autour de lui et sur sa route.</p>
           <p class="muted">Cliquez n'importe où sur la carte pour obtenir l'analyse convective du point (CAPE, Lifted Index, impacts récents).</p>
