@@ -23,6 +23,14 @@ docker build -t orages-en-vol .
 docker run -p 8080:8080 orages-en-vol
 ```
 
+## Mettre en ligne (URL publique gratuite)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Quentincls/Kitlenid)
+
+Le fichier `render.yaml` à la racine du dépôt configure tout : créer un compte Render, cliquer le bouton,
+valider. L'URL `https://orages-en-vol-xxxx.onrender.com` fonctionne sur iPad / iPhone.
+(Offre gratuite : le service s'endort après 15 min d'inactivité, premier chargement ~30 s.)
+
 ## Fonctionnalités
 
 - **Foudre en direct** : chaque impact apparaît en quelques secondes (halo animé), couleur selon l'âge
